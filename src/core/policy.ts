@@ -114,6 +114,22 @@ export class PolicyEngine {
       }
     }
 
+    // Check velocity (burst prevention)
+    if (this.policy.maxTransactionsPerWindow !== undefined) {
+      const windowMs = (this.policy.windowSeconds ?? 60) * 1000;
+      const windowStart = Date.now() - windowMs;
+      const logs = await this.getTransactionLogs();
+      const recentCount = logs.filter(
+        (l) => l.approved && l.timestamp >= windowStart
+      ).length;
+      if (recentCount >= this.policy.maxTransactionsPerWindow) {
+        return {
+          action: "deny",
+          reason: `Velocity limit: ${recentCount} transactions in last ${this.policy.windowSeconds ?? 60}s (max: ${this.policy.maxTransactionsPerWindow})`,
+        };
+      }
+    }
+
     // Check daily limit
     const todaySpent = await this.getTodaySpending();
     if (todaySpent + amount > this.policy.dailyLimit) {

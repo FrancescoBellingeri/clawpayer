@@ -38,6 +38,12 @@ policies:
   # Block payments to these merchants
   blockedMerchants: []
 
+  # Velocity check — max N approved transactions per time window
+  # Prevents burst spending from runaway agents making rapid micro-payments
+  # that each stay under the auto-approve threshold.
+  maxTransactionsPerWindow: 1
+  windowSeconds: 3600
+
 approval:
   # How to notify you when approval is needed
   # terminal — CLI prompt (default, good for local dev)

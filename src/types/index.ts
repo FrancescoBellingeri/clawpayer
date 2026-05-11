@@ -32,6 +32,8 @@ export interface PolicyConfig {
   allowedMerchants?: string[];
   blockedMerchants?: string[];
   currency: string;
+  maxTransactionsPerWindow?: number;
+  windowSeconds?: number;
 }
 
 export interface PaymentRequest {
