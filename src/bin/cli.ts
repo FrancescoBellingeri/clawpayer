@@ -115,10 +115,30 @@ async function status() {
 
   const vault = new Vault("keychain");
   const hasCard = await vault.hasCard();
+  const isLocked = existsSync(join(CLAWPAYER_DIR, "LOCKED"));
 
   console.log(`Vault:  ${hasCard ? "✅ Card stored" : "❌ No card stored"}`);
   console.log(`Config: ${existsSync(CONFIG_FILE) ? "✅ Found" : "❌ Not found"}`);
+  console.log(`Lock:   ${isLocked ? "🔒 LOCKED (all payments blocked)" : "🔓 Unlocked"}`);
   console.log(`Dir:    ${CLAWPAYER_DIR}\n`);
+}
+
+async function lock() {
+  const lockFile = join(CLAWPAYER_DIR, "LOCKED");
+  await writeFile(lockFile, new Date().toISOString(), { encoding: "utf-8", mode: 0o600 });
+  console.log("\n🔒 ClawPayer LOCKED — all payments blocked.\n");
+  console.log("   Run `clawpayer unlock` to resume.\n");
+}
+
+async function unlock() {
+  const lockFile = join(CLAWPAYER_DIR, "LOCKED");
+  if (!existsSync(lockFile)) {
+    console.log("\nℹ️  ClawPayer is not locked.\n");
+    return;
+  }
+  const { unlink } = await import("node:fs/promises");
+  await unlink(lockFile);
+  console.log("\n🔓 ClawPayer UNLOCKED — payments resumed.\n");
 }
 
 // --- CLI Router ---
@@ -135,6 +155,12 @@ switch (command) {
   case "status":
     status().catch(console.error);
     break;
+  case "lock":
+    lock().catch(console.error);
+    break;
+  case "unlock":
+    unlock().catch(console.error);
+    break;
   default:
     console.log(`
 🦞 ClawPayer — Payment gateway for AI agents
@@ -143,6 +169,8 @@ Usage:
   clawpayer init        Initialize vault and create default config
   clawpayer add-card    Store a credit card in the encrypted vault
   clawpayer status      Check vault and config status
+  clawpayer lock        Block all payments immediately (emergency freeze)
+  clawpayer unlock      Resume payments after a lock
 
 MCP Server:
   clawpayer serve       Start the MCP server (stdio transport)

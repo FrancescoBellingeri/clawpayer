@@ -61,6 +61,14 @@ export class PolicyEngine {
     const amount = request.amount;
     const currency = request.currency || this.policy.currency;
 
+    // Check emergency lock
+    if (existsSync(join(CLAWPAYER_DIR, "LOCKED"))) {
+      return {
+        action: "deny",
+        reason: "ClawPayer is locked. Run `clawpayer unlock` to resume payments.",
+      };
+    }
+
     // Check hard block
     if (amount > this.policy.blockAbove) {
       return {
