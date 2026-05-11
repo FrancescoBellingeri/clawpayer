@@ -41,8 +41,14 @@ policies:
   # Velocity check — max N approved transactions per time window
   # Prevents burst spending from runaway agents making rapid micro-payments
   # that each stay under the auto-approve threshold.
-  maxTransactionsPerWindow: 1
-  windowSeconds: 3600
+  # maxTransactionsPerWindow: 5
+  # windowSeconds: 60
+
+  # Time-based rules (uses local system time)
+  # allowedDays: [1, 2, 3, 4, 5]   # Mon–Fri only (0=Sun, 6=Sat)
+  # allowedHours:
+  #   start: 9    # 09:00
+  #   end: 17     # 17:00
 
 approval:
   # How to notify you when approval is needed

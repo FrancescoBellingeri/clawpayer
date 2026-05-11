@@ -69,6 +69,29 @@ export class PolicyEngine {
       };
     }
 
+    // Check time-based rules
+    const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    if (this.policy.allowedDays?.length) {
+      const today = new Date().getDay();
+      if (!this.policy.allowedDays.includes(today)) {
+        const allowed = this.policy.allowedDays.map((d) => DAY_NAMES[d]).join(", ");
+        return {
+          action: "deny",
+          reason: `Payments not allowed today (allowed days: ${allowed})`,
+        };
+      }
+    }
+    if (this.policy.allowedHours) {
+      const hour = new Date().getHours();
+      const { start, end } = this.policy.allowedHours;
+      if (hour < start || hour >= end) {
+        return {
+          action: "deny",
+          reason: `Payments not allowed at this hour (allowed: ${start}:00–${end}:00 local time, current: ${hour}:00)`,
+        };
+      }
+    }
+
     // Check hard block
     if (amount > this.policy.blockAbove) {
       return {

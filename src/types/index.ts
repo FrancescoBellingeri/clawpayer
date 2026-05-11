@@ -34,6 +34,8 @@ export interface PolicyConfig {
   currency: string;
   maxTransactionsPerWindow?: number;
   windowSeconds?: number;
+  allowedHours?: { start: number; end: number };
+  allowedDays?: number[];
 }
 
 export interface PaymentRequest {
