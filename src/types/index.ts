@@ -36,6 +36,7 @@ export interface PolicyConfig {
   windowSeconds?: number;
   allowedHours?: { start: number; end: number };
   allowedDays?: number[];
+  perAgentLimits?: Record<string, AgentPolicyOverride>;
 }
 
 export interface PaymentRequest {
@@ -43,7 +44,16 @@ export interface PaymentRequest {
   merchant: string;
   description: string;
   currency?: string;
+  agentId?: string;
   metadata?: Record<string, string>;
+}
+
+export interface AgentPolicyOverride {
+  dailyLimit?: number;
+  monthlyLimit?: number;
+  blockAbove?: number;
+  autoApproveUnder?: number;
+  requireApprovalAbove?: number;
 }
 
 export interface PolicyResult {

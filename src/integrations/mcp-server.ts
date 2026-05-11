@@ -68,6 +68,10 @@ The user has configured spending rules and must approve payments above certain t
               description: "Currency code (default: USD)",
               default: "USD",
             },
+            agent_id: {
+              type: "string",
+              description: "Identifier for this agent instance (used for per-agent spending limits configured by the user)",
+            },
           },
           required: ["amount", "merchant", "description"],
         },
@@ -103,18 +107,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   switch (name) {
     case "request_card": {
-      const { amount, merchant, description, currency } = args as {
+      const { amount, merchant, description, currency, agent_id } = args as {
         amount: number;
         merchant: string;
         description: string;
         currency?: string;
+        agent_id?: string;
       };
+
+      const agentId = agent_id ?? process.env.CLAWPAYER_AGENT_ID;
 
       const result = await clawpayer.requestCard({
         amount,
         merchant,
         description,
         currency,
+        agentId,
       });
 
       if (result.approved) {

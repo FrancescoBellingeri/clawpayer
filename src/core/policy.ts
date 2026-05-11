@@ -9,6 +9,7 @@ import type {
   PolicyResult,
   TransactionLog,
   ClawPayerConfig,
+  AgentPolicyOverride,
 } from "../types/index.js";
 
 const CLAWPAYER_DIR = join(homedir(), ".clawpayer");
@@ -92,11 +93,16 @@ export class PolicyEngine {
       }
     }
 
+    // Resolve per-agent overrides (amount thresholds + limits only)
+    const agentOverrides: AgentPolicyOverride | undefined =
+      request.agentId ? this.policy.perAgentLimits?.[request.agentId] : undefined;
+    const p = agentOverrides ? { ...this.policy, ...agentOverrides } : this.policy;
+
     // Check hard block
-    if (amount > this.policy.blockAbove) {
+    if (amount > p.blockAbove) {
       return {
         action: "deny",
-        reason: `Amount $${amount} exceeds maximum allowed ($${this.policy.blockAbove})`,
+        reason: `Amount $${amount} exceeds maximum allowed ($${p.blockAbove})${request.agentId ? ` for agent "${request.agentId}"` : ""}`,
       };
     }
 
@@ -145,7 +151,7 @@ export class PolicyEngine {
       }
     }
 
-    // Check velocity (burst prevention)
+    // Check velocity (burst prevention — always global)
     if (this.policy.maxTransactionsPerWindow !== undefined) {
       const windowMs = (this.policy.windowSeconds ?? 60) * 1000;
       const windowStart = Date.now() - windowMs;
@@ -161,38 +167,42 @@ export class PolicyEngine {
       }
     }
 
-    // Check daily limit
-    const todaySpent = await this.getTodaySpending();
-    if (todaySpent + amount > this.policy.dailyLimit) {
+    // Check daily limit (per-agent spending if override is set, otherwise global)
+    const todaySpent = agentOverrides?.dailyLimit !== undefined && request.agentId
+      ? await this.getSpendingForAgent(request.agentId, "day")
+      : await this.getTodaySpending();
+    if (todaySpent + amount > p.dailyLimit) {
       return {
         action: "deny",
-        reason: `Daily limit exceeded. Spent today: $${todaySpent.toFixed(2)}, limit: $${this.policy.dailyLimit}`,
+        reason: `Daily limit exceeded. Spent today: $${todaySpent.toFixed(2)}, limit: $${p.dailyLimit}${request.agentId && agentOverrides?.dailyLimit !== undefined ? ` (agent "${request.agentId}")` : ""}`,
       };
     }
 
     // Check monthly limit
-    if (this.policy.monthlyLimit) {
-      const monthSpent = await this.getMonthSpending();
-      if (monthSpent + amount > this.policy.monthlyLimit) {
+    if (p.monthlyLimit) {
+      const monthSpent = agentOverrides?.monthlyLimit !== undefined && request.agentId
+        ? await this.getSpendingForAgent(request.agentId, "month")
+        : await this.getMonthSpending();
+      if (monthSpent + amount > p.monthlyLimit) {
         return {
           action: "deny",
-          reason: `Monthly limit exceeded. Spent this month: $${monthSpent.toFixed(2)}, limit: $${this.policy.monthlyLimit}`,
+          reason: `Monthly limit exceeded. Spent this month: $${monthSpent.toFixed(2)}, limit: $${p.monthlyLimit}${request.agentId && agentOverrides?.monthlyLimit !== undefined ? ` (agent "${request.agentId}")` : ""}`,
         };
       }
     }
 
     // Auto-approve if under threshold
-    if (amount <= this.policy.autoApproveUnder) {
+    if (amount <= p.autoApproveUnder) {
       return {
         action: "auto_approve",
-        reason: `Amount $${amount} is under auto-approve threshold ($${this.policy.autoApproveUnder})`,
+        reason: `Amount $${amount} is under auto-approve threshold ($${p.autoApproveUnder})`,
       };
     }
 
     // Require human approval
     return {
       action: "require_approval",
-      reason: `Amount $${amount} requires human approval (threshold: $${this.policy.requireApprovalAbove})`,
+      reason: `Amount $${amount} requires human approval (threshold: $${p.requireApprovalAbove})`,
     };
   }
 
@@ -221,6 +231,20 @@ export class PolicyEngine {
     } catch {
       return [];
     }
+  }
+
+  private async getSpendingForAgent(agentId: string, period: "day" | "month"): Promise<number> {
+    const logs = await this.getTransactionLogs();
+    const start = new Date();
+    if (period === "day") {
+      start.setHours(0, 0, 0, 0);
+    } else {
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+    }
+    return logs
+      .filter((l) => l.approved && l.timestamp >= start.getTime() && l.payment.agentId === agentId)
+      .reduce((sum, l) => sum + l.payment.amount, 0);
   }
 
   private async getTodaySpending(): Promise<number> {

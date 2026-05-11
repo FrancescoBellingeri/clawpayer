@@ -44,6 +44,18 @@ policies:
   # maxTransactionsPerWindow: 5
   # windowSeconds: 60
 
+  # Per-agent spending overrides
+  # Different trust levels for different AI agents.
+  # agentId is set via the agent_id parameter in request_card,
+  # or via the CLAWPAYER_AGENT_ID env var on the MCP server.
+  # perAgentLimits:
+  #   claude-desktop:
+  #     autoApproveUnder: 100
+  #     dailyLimit: 500
+  #   untrusted-script:
+  #     autoApproveUnder: 0    # always require human approval
+  #     blockAbove: 50
+
   # Time-based rules (uses local system time)
   # allowedDays: [1, 2, 3, 4, 5]   # Mon–Fri only (0=Sun, 6=Sat)
   # allowedHours:
